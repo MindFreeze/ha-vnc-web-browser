@@ -6,7 +6,7 @@ This is especially useful for older or low power devices that don't have a recen
 
 ## Installation
 
-1. Add this repository to your Home Assistant addon store
+1. Add https://github.com/MindFreeze/home-assistant-addons to the addon store repositories
 2. Install the VNC Web Browser addon
 3. Configure the addon as described below
 4. Start the addon
