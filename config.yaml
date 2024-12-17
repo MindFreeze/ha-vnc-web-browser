@@ -1,5 +1,5 @@
 name: "VNC Web Browser"
-version: "0.9.1"
+version: "0.9.2"
 slug: "vnc_web_browser"
 description: "Display multiple web pages through VNC"
 url: "https://github.com/mindfreeze/ha-vnc-web-browser"
