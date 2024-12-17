@@ -1,0 +1,39 @@
+{
+    "browser": {
+      "check_default_browser": false
+    },
+    "credentials_enable_service": false,
+    "history": {
+      "saving_disabled": true
+    },
+    "metrics": {
+      "reporting_enabled": false
+    },
+    "autofill": {
+      "enabled": false
+    },
+    "extensions": {
+      "theme": {
+        "use_system": true
+      }
+    },
+    "hardware_acceleration_mode": {
+      "enabled": false
+    },
+    "smooth_scrolling": {
+      "enabled": false
+    },
+    "browser": {
+      "custom_chrome_frame": false
+    },
+    "new_tab_page": {
+      "show_most_visited": false,
+      "show_suggestions": false
+    },
+    "accessibility": {
+      "force_disabled": 1
+    },
+    "kiosk_mode": {
+      "enabled": true
+    }
+  }

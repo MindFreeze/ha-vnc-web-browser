@@ -1,0 +1,4 @@
+#!/bin/bash
+xrdb $HOME/.Xresources
+xsetroot -solid grey
+openbox-session &

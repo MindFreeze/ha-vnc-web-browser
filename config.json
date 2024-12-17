@@ -1,0 +1,7 @@
+{
+  "displays": [
+    { "url": "http://example1.com", "resolution": "1920x1080", "port": 5901 },
+    { "url": "http://example2.com", "resolution": "1280x720", "port": 5902 },
+    { "url": "http://example3.com", "resolution": "800x600", "port": 5903 }
+  ]
+}
