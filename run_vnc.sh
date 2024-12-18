@@ -23,7 +23,13 @@ while IFS= read -r display; do
     height=$(echo $resolution | cut -d'x' -f2)
 
     # Start a new VNC server for this display
-    vncserver :$display_number -geometry ${width}x${height} -depth 16
+    if [ ! -f "/home/vnc_user/.vnc/passwd" ]; then
+        echo "Starting VNC server without password for display $display_number"
+        Xvnc :$display_number -geometry ${width}x${height} -depth 16 -nevershared -rfbport $port -alwaysshared &
+    else
+        echo "Starting VNC server with password for display $display_number"
+        Xvnc :$display_number -geometry ${width}x${height} -depth 16 -nevershared -rfbport $port -alwaysshared -rfbauth /home/vnc_user/.vnc/passwd &
+    fi
 
     # Wait a moment for the VNC server to start
     sleep 2
