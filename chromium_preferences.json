@@ -3,7 +3,10 @@
       "check_default_browser": false,
       "custom_chrome_frame": false
     },
-    "credentials_enable_service": false,
+    "credentials_enable_service": true,
+    "password_manager": {
+      "enable_save_password_bubble": true
+    },
     "history": {
       "saving_disabled": true
     },
@@ -11,7 +14,7 @@
       "reporting_enabled": false
     },
     "autofill": {
-      "enabled": false
+      "enabled": true
     },
     "extensions": {
       "theme": {

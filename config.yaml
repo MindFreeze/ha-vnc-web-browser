@@ -1,5 +1,5 @@
 name: "VNC Web Browser"
-version: "0.10.1"
+version: "0.11.0"
 slug: "vnc_web_browser"
 description: "Display multiple web pages through VNC"
 url: "https://github.com/mindfreeze/ha-vnc-web-browser"
@@ -12,7 +12,6 @@ arch:
 startup: application
 boot: auto
 init: false
-host_network: true
 ports:
   5901/tcp: 5901
   5902/tcp: 5902
