@@ -16,6 +16,7 @@ while IFS= read -r display; do
     url=$(echo $display | jq -r '.url')
     resolution=$(echo $display | jq -r '.resolution')
     port=$(echo $display | jq -r '.port')
+    depth=$(echo $display | jq -r '.depth // 16')
     display_number=$((port - 5900))
 
     # Split resolution into width and height
@@ -25,10 +26,10 @@ while IFS= read -r display; do
     # Start a new VNC server for this display
     if [ ! -f "/home/vnc_user/.vnc/passwd" ]; then
         echo "Starting VNC server without password for display $display_number"
-        Xvnc :$display_number -geometry ${width}x${height} -depth 16 -nevershared -rfbport $port -alwaysshared &
+        Xvnc :$display_number -geometry ${width}x${height} -depth ${depth} -nevershared -rfbport $port -alwaysshared &
     else
         echo "Starting VNC server with password for display $display_number"
-        Xvnc :$display_number -geometry ${width}x${height} -depth 16 -nevershared -rfbport $port -alwaysshared -rfbauth /home/vnc_user/.vnc/passwd &
+        Xvnc :$display_number -geometry ${width}x${height} -depth ${depth} -nevershared -rfbport $port -alwaysshared -rfbauth /home/vnc_user/.vnc/passwd &
     fi
 
     # Wait a moment for the VNC server to start

@@ -1,5 +1,5 @@
 name: "VNC Web Browser"
-version: "0.9.18"
+version: "0.10.0"
 slug: "vnc_web_browser"
 description: "Display multiple web pages through VNC"
 url: "https://github.com/mindfreeze/ha-vnc-web-browser"
@@ -12,8 +12,7 @@ arch:
 startup: application
 boot: auto
 init: false
-map:
-  - addon_config:rw
+host_network: true
 ports:
   5901/tcp: 5901
   5902/tcp: 5902
@@ -29,10 +28,12 @@ schema:
     - url: str?
       resolution: match(^\d+x\d+$)
       port: int(5901,5904)
+      depth: int(8,32)?
   vnc_password: password?
 options:
   displays:
     - url: "http://homeassistant.local:8123"
       resolution: "1280x720"
       port: 5901
+      depth: 16
   vnc_password: ""

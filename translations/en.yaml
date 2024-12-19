@@ -1,0 +1,7 @@
+configuration:
+  displays:
+    name: Displays
+    description: List of displays to render
+  vnc_password:
+    name: VNC Password
+    description: Password for the VNC connection
