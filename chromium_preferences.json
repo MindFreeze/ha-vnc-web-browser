@@ -1,6 +1,7 @@
 {
     "browser": {
-      "check_default_browser": false
+      "check_default_browser": false,
+      "custom_chrome_frame": false
     },
     "credentials_enable_service": false,
     "history": {
@@ -22,9 +23,6 @@
     },
     "smooth_scrolling": {
       "enabled": false
-    },
-    "browser": {
-      "custom_chrome_frame": false
     },
     "new_tab_page": {
       "show_most_visited": false,

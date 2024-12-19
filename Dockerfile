@@ -8,9 +8,9 @@ RUN apt-get update && apt-get install -y \
     chromium \
     x11-xserver-utils \
     xauth \
-    openbox \
     jq \
     dbus-x11 \
+    x11-xserver-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
