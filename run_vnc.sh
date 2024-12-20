@@ -17,19 +17,26 @@ while IFS= read -r display; do
     resolution=$(echo $display | jq -r '.resolution')
     port=$(echo $display | jq -r '.port')
     depth=$(echo $display | jq -r '.depth // 16')
+    view_only=$(echo $display | jq -r '.view_only // false')
     display_number=$((port - 5900))
 
     # Split resolution into width and height
     width=$(echo $resolution | cut -d'x' -f1)
     height=$(echo $resolution | cut -d'x' -f2)
 
+    # Build VNC server options
+    vnc_opts="-geometry ${width}x${height} -depth ${depth} -nevershared -rfbport $port -alwaysshared"
+    if [ "$view_only" = "true" ]; then
+        vnc_opts="$vnc_opts -viewonly"
+    fi
+
     # Start a new VNC server for this display
     if [ ! -f "/home/vnc_user/.vnc/passwd" ]; then
         echo "Starting VNC server without password for display $display_number"
-        Xvnc :$display_number -geometry ${width}x${height} -depth ${depth} -nevershared -rfbport $port -alwaysshared &
+        Xvnc :$display_number $vnc_opts &
     else
         echo "Starting VNC server with password for display $display_number"
-        Xvnc :$display_number -geometry ${width}x${height} -depth ${depth} -nevershared -rfbport $port -alwaysshared -rfbauth /home/vnc_user/.vnc/passwd &
+        Xvnc :$display_number $vnc_opts -rfbauth /home/vnc_user/.vnc/passwd &
     fi
 
     # Wait a moment for the VNC server to start

@@ -21,10 +21,12 @@ displays:
     resolution: "1920x1080"
     port: 5901
     depth: 16
+    view_only: false
   - url: "http://example2.com"
     resolution: "1280x720"
     port: 5902
     depth: 16
+    view_only: false
 vnc_password: "your_secure_password"
 ```
 
@@ -35,6 +37,7 @@ vnc_password: "your_secure_password"
   - `resolution`: The resolution of the display (e.g., "1920x1080")
   - `port`: VNC port number (must be between 5901 and 5908). This is the port used in the docker container. You can map it to another port in the addon's network configuration
   - `depth`: Color depth in bits (8-32, defaults to 16). Common values are 8, 16, 24, or 32. There seem to be some issues with 8 bit depth so be careful with that value
+  - `view_only`: Optional boolean to enable view-only mode (defaults to false). When enabled, keyboard and pointer events from VNC clients will be ignored
 - `vnc_password`: Password for VNC connections (required)
 
 ## Usage

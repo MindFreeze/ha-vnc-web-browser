@@ -1,5 +1,5 @@
 name: "VNC Web Browser"
-version: "0.11.0"
+version: "0.12.0"
 slug: "vnc_web_browser"
 description: "Display multiple web pages through VNC"
 url: "https://github.com/mindfreeze/ha-vnc-web-browser"
@@ -28,6 +28,7 @@ schema:
       resolution: match(^\d+x\d+$)
       port: int(5901,5904)
       depth: int(8,32)?
+      view_only: bool?
   vnc_password: password?
 options:
   displays:
@@ -35,4 +36,5 @@ options:
       resolution: "1280x720"
       port: 5901
       depth: 16
+      view_only: false
   vnc_password: ""
