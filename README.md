@@ -4,6 +4,10 @@ This addon allows you to display multiple web pages through VNC connections. Eac
 
 This is especially useful for older or low power devices that don't have a recent browser. You can use old tablets or e-ink devices as dashboards.
 
+![P_20240928_170707](https://github.com/user-attachments/assets/dd021934-9a1b-4fa2-8569-2d08c59f34cf)
+
+![P_20241219_162815](https://github.com/user-attachments/assets/2e463e6e-1c56-43d9-a331-051a47444930)
+
 ## Installation
 
 1. Add https://github.com/MindFreeze/home-assistant-addons to the addon store repositories
