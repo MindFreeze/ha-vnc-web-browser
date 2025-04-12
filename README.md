@@ -53,6 +53,8 @@ vnc_password: "your_secure_password"
    - Port: As configured per display (5901-5908)
    - Password: As configured in vnc_password
 
+Note: Devices without a keyboard like old kindles can't log in but you can use a VNC client on another device to connect to the same session and log in. The session data is saved so you shouldn't need to do this more than once.
+
 ## Notes
 
 - Each display runs in its own Chromium instance
