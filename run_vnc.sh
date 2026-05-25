@@ -19,7 +19,25 @@ while IFS= read -r display; do
     depth=$(echo $display | jq -r '.depth // 16')
     view_only=$(echo $display | jq -r '.view_only // false')
     browser_args=$(echo $display | jq -r '.browser_args // ""')
+    cdp_port=$(echo $display | jq -r '.cdp_port // empty')
     display_number=$((port - 5900))
+
+    # Chrome DevTools Protocol setup.
+    # Chromium M113+ silently ignores --remote-debugging-address=0.0.0.0 and binds
+    # 127.0.0.1 (upstream WontFix: crbug.com/40261787). We work around it by binding
+    # Chromium to an internal loopback port and forwarding via socat so the CDP
+    # endpoint is reachable from sibling addons / the host.
+    if [ -n "$cdp_port" ]; then
+        internal_cdp_port=$((cdp_port + 100))
+        # Strip any user-supplied remote-debugging flags to avoid port collisions
+        browser_args=$(echo "$browser_args" | sed -E 's/--remote-debugging-port=[^ ]*//g; s/--remote-debugging-address=[^ ]*//g; s/--remote-allow-origins=[^ ]*//g')
+        # Append our managed CDP flags. --remote-allow-origins is required for
+        # WebSocket upgrades from non-localhost callers (Playwright, Puppeteer, etc).
+        browser_args="$browser_args --remote-debugging-port=$internal_cdp_port --remote-allow-origins=*"
+        # Forwarder: external 0.0.0.0:$cdp_port -> chromium 127.0.0.1:$internal_cdp_port
+        echo "Starting CDP forwarder for display $display_number: 0.0.0.0:$cdp_port -> 127.0.0.1:$internal_cdp_port"
+        socat TCP4-LISTEN:$cdp_port,fork,reuseaddr,bind=0.0.0.0 TCP4:127.0.0.1:$internal_cdp_port &
+    fi
 
     # Split resolution into width and height
     width=$(echo $resolution | cut -d'x' -f1)

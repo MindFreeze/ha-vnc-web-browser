@@ -49,7 +49,36 @@ vnc_password: "your_secure_password"
     - `"--force-device-scale-factor=1.5"` - Set custom zoom level
     - `"--disable-features=Translate"` - Disable specific features
     - You can combine multiple arguments: `"--force-dark-mode --force-device-scale-factor=1.25"`
+  - `cdp_port`: Optional integer (9221-9224) enabling Chrome DevTools Protocol on this display. See "Chrome DevTools Protocol" below.
 - `vnc_password`: Password for VNC connections (required)
+
+## Chrome DevTools Protocol (CDP)
+
+Setting `cdp_port` on a display exposes Chromium's DevTools Protocol so external tools (Playwright, Puppeteer, browser automation agents) can drive the same browser session a user is watching over VNC. This is useful for AI agents that need a "teach me" mode where a human can take over via VNC mid-session.
+
+Example:
+
+```yaml
+displays:
+  - url: "https://example.com"
+    resolution: "1280x720"
+    port: 5901
+    cdp_port: 9222
+```
+
+Then connect from Playwright:
+
+```python
+browser = await playwright.chromium.connect_over_cdp("ws://<addon-host>:9222")
+```
+
+`<addon-host>` is either the addon's internal hostname (e.g. `<repo-hash>-vnc-web-browser` for sibling addons on the hassio Docker network) or your Home Assistant host's LAN IP if you publish the port externally.
+
+### Why CDP needs special handling
+
+Chromium M113+ silently ignores `--remote-debugging-address=0.0.0.0` and binds 127.0.0.1 regardless (upstream marked WontFix: [crbug.com/40261787](https://issues.chromium.org/issues/40261787)). The addon works around this by binding Chromium to a loopback-only internal port and forwarding via `socat` so the CDP endpoint is reachable from outside the container. The `--remote-allow-origins=*` flag is also injected automatically — without it, modern Chromium rejects WebSocket upgrades from non-localhost callers with a 403.
+
+Do **not** put `--remote-debugging-port` or `--remote-debugging-address` into `browser_args` when using `cdp_port`; those flags are stripped automatically to prevent collisions.
 
 ## Usage
 
