@@ -1,7 +1,7 @@
 name: "VNC Web Browser"
-version: "0.12.0"
+version: "0.13.0"
 slug: "vnc_web_browser"
-description: "Display multiple web pages through VNC"
+description: "Display multiple web pages through VNC, with optional Chrome DevTools Protocol access"
 url: "https://github.com/mindfreeze/ha-vnc-web-browser"
 arch:
   - aarch64
@@ -17,11 +17,19 @@ ports:
   5902/tcp: 5902
   5903/tcp: 5903
   5904/tcp: 5904
+  9221/tcp: null
+  9222/tcp: null
+  9223/tcp: null
+  9224/tcp: null
 ports_description:
   5901/tcp: "VNC port for display 1"
   5902/tcp: "VNC port for display 2"
   5903/tcp: "VNC port for display 3"
   5904/tcp: "VNC port for display 4"
+  9221/tcp: "Chrome DevTools Protocol (optional — set cdp_port on a display)"
+  9222/tcp: "Chrome DevTools Protocol (optional — set cdp_port on a display)"
+  9223/tcp: "Chrome DevTools Protocol (optional — set cdp_port on a display)"
+  9224/tcp: "Chrome DevTools Protocol (optional — set cdp_port on a display)"
 schema:
   displays:
     - url: str?
@@ -30,6 +38,7 @@ schema:
       depth: int(8,32)?
       view_only: bool?
       browser_args: str?
+      cdp_port: int(9221,9224)?
   vnc_password: password?
 options:
   displays:

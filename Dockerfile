@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     jq \
     dbus-x11 \
     x11-xserver-utils \
+    socat \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -42,10 +43,10 @@ LABEL \
     io.hass.name="VNC Web Browser" \
     io.hass.description="Display multiple web pages through VNC" \
     io.hass.type="addon" \
-    io.hass.version="0.11.0" \
+    io.hass.version="0.13.0" \
     io.hass.arch="aarch64|amd64|armhf|armv7"
 
-# Expose 8 sequential ports
-EXPOSE 5901/tcp 5902/tcp 5903/tcp 5904/tcp
+# Expose VNC ports (one per display) and optional CDP ports (Chrome DevTools Protocol)
+EXPOSE 5901/tcp 5902/tcp 5903/tcp 5904/tcp 9221/tcp 9222/tcp 9223/tcp 9224/tcp
 
 CMD ["/home/vnc_user/startup.sh"]
