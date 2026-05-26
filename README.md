@@ -74,6 +74,8 @@ browser = await playwright.chromium.connect_over_cdp("ws://<addon-host>:9222")
 
 `<addon-host>` is either the addon's internal hostname (e.g. `<repo-hash>-vnc-web-browser` for sibling addons on the hassio Docker network) or your Home Assistant host's LAN IP if you publish the port externally.
 
+Do not publish cdp_port to a host port on an untrusted network — CDP has no authentication.
+
 ### Why CDP needs special handling
 
 Chromium M113+ silently ignores `--remote-debugging-address=0.0.0.0` and binds 127.0.0.1 regardless (upstream marked WontFix: [crbug.com/40261787](https://issues.chromium.org/issues/40261787)). The addon works around this by binding Chromium to a loopback-only internal port and forwarding via `socat` so the CDP endpoint is reachable from outside the container. The `--remote-allow-origins=*` flag is also injected automatically — without it, modern Chromium rejects WebSocket upgrades from non-localhost callers with a 403.
