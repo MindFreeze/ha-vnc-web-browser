@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Read configuration from Home Assistant options (as root)
-config=$(cat /data/options.json)
-
 # Set VNC password only if it's not empty
 vnc_password=$(jq -r '.vnc_password // empty' /data/options.json)
 
@@ -16,12 +13,14 @@ else
     rm -f /home/vnc_user/.vnc/passwd
 fi
 
-# Persistent Chromium home + per-display profiles (HA tokens live here)
+# vnc_user must read options (including optional HA tokens) without putting
+# them on the process command line.
+chmod a+r /data/options.json 2>/dev/null || true
 mkdir -p /data/home/.config /data/home/.cache
 chown -R vnc_user:vnc_user /data/home
 displays=$(jq -c '.displays[]' /data/options.json)
 while IFS= read -r display; do
-    port=$(echo $display | jq -r '.port')
+    port=$(echo "$display" | jq -r '.port')
     display_number=$((port - 5900))
     mkdir -p "/data/chromium-data-$display_number"
     chown -R vnc_user:vnc_user "/data/chromium-data-$display_number"
@@ -65,6 +64,6 @@ shutdown() {
 }
 trap shutdown SIGTERM SIGINT
 
-su -c "/home/vnc_user/run_vnc.sh '$config'" vnc_user &
+su -c "/home/vnc_user/run_vnc.sh" vnc_user &
 CHILD_PID=$!
 wait "$CHILD_PID"

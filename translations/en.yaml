@@ -1,7 +1,10 @@
 configuration:
   displays:
     name: Displays
-    description: List of displays to render
+    description: List of displays to render. Optional per-display ha_access_token overrides the global token for that display.
   vnc_password:
     name: VNC Password
     description: Password for the VNC connection
+  ha_access_token:
+    name: Home Assistant access token
+    description: Optional long-lived access token (Profile → Security). Seeds dashboard login so devices without a keyboard do not need a VNC login. A per-display ha_access_token overrides this.

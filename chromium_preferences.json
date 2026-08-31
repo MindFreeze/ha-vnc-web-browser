@@ -5,7 +5,9 @@
     },
     "credentials_enable_service": false,
     "profile": {
-      "password_manager_enabled": false
+      "password_manager_enabled": false,
+      "exit_type": "Normal",
+      "exited_cleanly": true
     },
     "password_manager": {
       "enable_save_password_bubble": false,
@@ -43,5 +45,8 @@
     },
     "kiosk_mode": {
       "enabled": true
+    },
+    "session": {
+      "restore_on_startup": 5
     }
   }

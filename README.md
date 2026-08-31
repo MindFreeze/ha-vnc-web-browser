@@ -21,7 +21,7 @@ Example configuration:
 
 ```yaml
 displays:
-  - url: "http://example1.com"
+  - url: "http://homeassistant:8123"
     resolution: "1920x1080"
     port: 5901
     depth: 16
@@ -34,6 +34,7 @@ displays:
     view_only: false
     browser_args: ""
 vnc_password: "your_secure_password"
+ha_access_token: "<long-lived-access-token>"
 ```
 
 ### Configuration Options
@@ -50,7 +51,23 @@ vnc_password: "your_secure_password"
     - `"--disable-features=Translate"` - Disable specific features
     - You can combine multiple arguments: `"--force-dark-mode --force-device-scale-factor=1.25"`
   - `cdp_port`: Optional integer (9221-9224) enabling Chrome DevTools Protocol on this display. See "Chrome DevTools Protocol" below.
+  - `ha_access_token`: Optional long-lived access token for this display only. Overrides the global `ha_access_token`. Use this when some displays are Home Assistant and others are not, so the token is not written into another site's origin.
 - `vnc_password`: Password for VNC connections
+- `ha_access_token`: Optional Home Assistant long-lived access token used to log into dashboards on first start. See "Home Assistant login" below.
+
+## Home Assistant login
+
+### Automatic login (long-lived access token)
+
+Create a token in Home Assistant: **Profile → Security → Long-lived access tokens**. A dedicated kiosk user is recommended. Paste the token as `ha_access_token` (global or on an individual display).
+
+On start the addon seeds the frontend session so the dashboard loads without a login form. That is the path for Kindles and other devices without a keyboard.
+
+Set `url` to the same origin Chromium actually opens. From inside the addon network that is usually `http://homeassistant:8123` (most existing installs) or just `http://homeassistant` on newer installs whose Core HTTP port is 80. `homeassistant.local` may not resolve inside the container.
+
+### Remember me (no token)
+
+If you do not set a token, connect over VNC and log in once with **Remember me**. This should persist between restarts. If your display device doesn't have a keyboard (like some Kindles), you can connect from another device once in order to login.
 
 ## Chrome DevTools Protocol (CDP)
 
@@ -91,7 +108,7 @@ Do **not** put `--remote-debugging-port` or `--remote-debugging-address` into `b
    - Port: As configured per display (5901-5908)
    - Password: As configured in vnc_password
 
-Note: Devices without a keyboard like old kindles can't log in but you can use a VNC client on another device to connect to the same session and log in. After you log in once with **Remember me**, the addon snapshots the Home Assistant auth token (not your username or password) onto persistent storage and restores it before the dashboard loads — including after addon or host restarts. Chromium password saving is disabled.
+For Home Assistant dashboards, prefer a long-lived access token so devices without a keyboard never need a VNC login. Otherwise log in once over VNC with **Remember me**; see "Home Assistant login" above.
 
 ## Notes
 

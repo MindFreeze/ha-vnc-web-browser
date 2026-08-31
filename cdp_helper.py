@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Snapshot and restore Home Assistant hassTokens via Chrome DevTools Protocol.
+"""Snapshot, seed, and restore Home Assistant hassTokens via Chrome DevTools Protocol.
 
 HA often keeps the session only in window.__tokenCache (memory) unless
 storeToken/Remember-me actually enables localStorage writes. We copy tokens
 to a JSON file on /data every few seconds and inject them before the
 frontend boots so login survives Chromium being killed on addon restart.
+
+A long-lived access token from addon options can seed that same file so the
+first load skips the login form (token is read from stdin, never argv).
 """
 from __future__ import annotations
 
@@ -30,16 +33,6 @@ DUMP_EXPR = """(() => {
 })()"""
 
 
-def _recvexact(sock: socket.socket, n: int) -> bytes:
-    buf = bytearray()
-    while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
-        if not chunk:
-            raise RuntimeError("CDP websocket closed")
-        buf.extend(chunk)
-    return bytes(buf)
-
-
 def _send_frame(sock: socket.socket, payload: bytes, opcode: int = 1) -> None:
     mask = os.urandom(4)
     header = bytearray()
@@ -59,24 +52,7 @@ def _send_frame(sock: socket.socket, payload: bytes, opcode: int = 1) -> None:
     sock.sendall(header + mask + masked)
 
 
-def _recv_frame(sock: socket.socket) -> tuple[int, bytes]:
-    hdr = _recvexact(sock, 2)
-    opcode = hdr[0] & 0x0F
-    masked = bool(hdr[1] & 0x80)
-    length = hdr[1] & 0x7F
-    if length == 126:
-        length = struct.unpack(">H", _recvexact(sock, 2))[0]
-    elif length == 127:
-        length = struct.unpack(">Q", _recvexact(sock, 8))[0]
-    mask = _recvexact(sock, 4) if masked else b""
-    data = bytearray(_recvexact(sock, length))
-    if masked:
-        for i in range(len(data)):
-            data[i] ^= mask[i % 4]
-    return opcode, bytes(data)
-
-
-def ws_connect(ws_url: str, timeout: float = 10) -> socket.socket:
+def ws_connect(ws_url: str, timeout: float = 10) -> tuple[socket.socket, bytes]:
     parsed = urlparse(ws_url)
     host = parsed.hostname or "127.0.0.1"
     port = parsed.port or 80
@@ -102,40 +78,125 @@ def ws_connect(ws_url: str, timeout: float = 10) -> socket.socket:
             sock.close()
             raise RuntimeError("CDP websocket handshake closed")
         buf += chunk
-    status = buf.split(b"\r\n", 1)[0]
+    header, leftover = buf.split(b"\r\n\r\n", 1)
+    status = header.split(b"\r\n", 1)[0]
     if b"101" not in status:
         sock.close()
         raise RuntimeError(f"CDP handshake failed: {status.decode('ascii', 'replace')}")
-    return sock
+    return sock, leftover
 
 
-def ws_rpc(ws_url: str, method: str, params: dict | None = None, timeout: float = 15) -> dict:
-    sock = ws_connect(ws_url, timeout=timeout)
-    sock.settimeout(timeout)
-    try:
-        payload = json.dumps({"id": 1, "method": method, "params": params or {}})
-        _send_frame(sock, payload.encode("utf-8"))
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            opcode, data = _recv_frame(sock)
+class CdpSession:
+    """One CDP websocket. addScriptToEvaluateOnNewDocument is session-scoped
+    and is discarded if the socket is closed before navigation completes."""
+
+    def __init__(self, sock: socket.socket, leftover: bytes = b"", timeout: float = 15):
+        self.sock = sock
+        self._buf = leftover
+        self.timeout = timeout
+        self.sock.settimeout(timeout)
+        self._next_id = 0
+
+    @classmethod
+    def connect(cls, ws_url: str, timeout: float = 15) -> "CdpSession":
+        sock, leftover = ws_connect(ws_url, timeout=timeout)
+        return cls(sock, leftover, timeout)
+
+    def close(self) -> None:
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+    def __enter__(self) -> "CdpSession":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+    def _recvexact(self, n: int) -> bytes:
+        while len(self._buf) < n:
+            chunk = self.sock.recv(max(n - len(self._buf), 1))
+            if not chunk:
+                raise RuntimeError("CDP websocket closed")
+            self._buf += chunk
+        out = self._buf[:n]
+        self._buf = self._buf[n:]
+        return bytes(out)
+
+    def _recv_frame(self) -> tuple[int, bytes]:
+        hdr = self._recvexact(2)
+        opcode = hdr[0] & 0x0F
+        masked = bool(hdr[1] & 0x80)
+        length = hdr[1] & 0x7F
+        if length == 126:
+            length = struct.unpack(">H", self._recvexact(2))[0]
+        elif length == 127:
+            length = struct.unpack(">Q", self._recvexact(8))[0]
+        mask = self._recvexact(4) if masked else b""
+        data = bytearray(self._recvexact(length))
+        if masked:
+            for i in range(len(data)):
+                data[i] ^= mask[i % 4]
+        return opcode, bytes(data)
+
+    def _read_msg(self) -> dict:
+        while True:
+            opcode, data = self._recv_frame()
             if opcode == 9:
-                _send_frame(sock, data, opcode=10)
+                _send_frame(self.sock, data, opcode=10)
                 continue
-            if opcode in (8,):
+            if opcode == 8:
                 raise RuntimeError("CDP websocket closed by peer")
             if opcode not in (1, 2):
                 continue
-            msg = json.loads(data.decode("utf-8"))
-            if msg.get("id") == 1:
-                if "error" in msg:
-                    raise RuntimeError(msg["error"])
-                return msg.get("result") or {}
-        raise TimeoutError(f"CDP timeout waiting for {method}")
-    finally:
+            return json.loads(data.decode("utf-8"))
+
+    def call(self, method: str, params: dict | None = None, timeout: float | None = None) -> dict:
+        self._next_id += 1
+        req_id = self._next_id
+        wait = timeout if timeout is not None else self.timeout
+        old_timeout = self.sock.gettimeout()
+        self.sock.settimeout(wait)
         try:
-            sock.close()
-        except OSError:
-            pass
+            _send_frame(
+                self.sock,
+                json.dumps({"id": req_id, "method": method, "params": params or {}}).encode("utf-8"),
+            )
+            deadline = time.time() + wait
+            while time.time() < deadline:
+                remaining = max(0.1, deadline - time.time())
+                self.sock.settimeout(remaining)
+                msg = self._read_msg()
+                if msg.get("id") == req_id:
+                    if "error" in msg:
+                        raise RuntimeError(msg["error"])
+                    return msg.get("result") or {}
+            raise TimeoutError(f"CDP timeout waiting for {method}")
+        finally:
+            self.sock.settimeout(old_timeout)
+
+    def wait_event(self, method: str, timeout: float = 30) -> dict:
+        deadline = time.time() + timeout
+        old_timeout = self.sock.gettimeout()
+        try:
+            while time.time() < deadline:
+                remaining = max(0.1, deadline - time.time())
+                self.sock.settimeout(remaining)
+                try:
+                    msg = self._read_msg()
+                except socket.timeout:
+                    break
+                if msg.get("method") == method:
+                    return msg
+            raise TimeoutError(f"CDP timeout waiting for event {method}")
+        finally:
+            self.sock.settimeout(old_timeout)
+
+
+def ws_rpc(ws_url: str, method: str, params: dict | None = None, timeout: float = 15) -> dict:
+    with CdpSession.connect(ws_url, timeout=timeout) as cdp:
+        return cdp.call(method, params, timeout=timeout)
 
 
 def http_json(port: int, path: str) -> object:
@@ -241,12 +302,80 @@ def write_tokens(path: str, raw: str) -> None:
     os.replace(tmp, path)
 
 
+def origin_from_url(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.hostname:
+        raise ValueError("URL has no origin")
+    host = parsed.hostname
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    port = parsed.port
+    scheme = parsed.scheme.lower()
+    # Match location.protocol + '//' + location.host (default ports omitted).
+    if port is None or (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
+        return f"{scheme}://{host}"
+    return f"{scheme}://{host}:{port}"
+
+
+def cmd_seed(path: str, url: str) -> int:
+    token = sys.stdin.read().strip()
+    if not token:
+        return 1
+    try:
+        origin = origin_from_url(url)
+    except ValueError:
+        print("CDP: cannot seed token, URL has no origin", file=sys.stderr, flush=True)
+        return 1
+    blob = {
+        "hassUrl": origin,
+        "clientId": f"{origin}/",
+        "access_token": token,
+        "refresh_token": "",
+        "expires_in": int(1e11),
+        "expires": int(time.time() * 1000 + 1e11),
+    }
+    write_tokens(path, json.dumps(blob))
+    print(f"CDP: seeded Home Assistant access token for {origin}", flush=True)
+    return 0
+
+
 def inject_script(tokens: dict) -> str:
-    literal = json.dumps(tokens, separators=(",", ":"))
+    payload = {
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens.get("refresh_token") or "",
+        "expires": tokens.get("expires") or int(time.time() * 1000 + 1e11),
+        "expires_in": tokens.get("expires_in") or int(1e11),
+        "token_type": tokens.get("token_type") or "Bearer",
+    }
+    literal = json.dumps(payload, separators=(",", ":"))
+    # hassUrl must match location (port 80 omitted, redirects, etc.).
     return (
         "(function(){try{"
-        "localStorage.setItem('hassTokens', JSON.stringify(%s));"
-        "}catch(e){}})();" % literal
+        "var origin=location.protocol+'//'+location.host;"
+        "if(origin.indexOf('http')!==0)return;"
+        "var tokens=" + literal + ";"
+        "tokens.hassUrl=origin;"
+        "tokens.clientId=origin+'/';"
+        "localStorage.setItem('hassTokens',JSON.stringify(tokens));"
+        "window.__tokenCache=window.__tokenCache||{};"
+        "window.__tokenCache.tokens=tokens;"
+        "window.__tokenCache.writeEnabled=true;"
+        "}catch(e){}})();"
+    )
+
+
+def _already_on_url(current: str, target: str) -> bool:
+    if not current or current.startswith("about:") or current.startswith("chrome"):
+        return False
+    try:
+        cur, tgt = urlparse(current), urlparse(target)
+    except ValueError:
+        return False
+    return (
+        cur.scheme == tgt.scheme
+        and (cur.hostname or "").lower() == (tgt.hostname or "").lower()
+        and cur.port == tgt.port
+        and (cur.path or "/") == (tgt.path or "/")
     )
 
 
@@ -280,22 +409,30 @@ def cmd_persist(port: int, path: str, url: str) -> int:
             if not injected:
                 wait_cdp(port, seconds=5)
                 page = wait_page(port, seconds=5)
-                ws = page["webSocketDebuggerUrl"]
-                ws_rpc(ws, "Page.enable")
                 tokens = load_tokens(path)
-                if tokens:
-                    ws_rpc(
-                        ws,
-                        "Page.addScriptToEvaluateOnNewDocument",
-                        {"source": inject_script(tokens)},
-                    )
-                    print("CDP: will restore Home Assistant tokens on navigation", flush=True)
-                if url:
-                    ws_rpc(ws, "Page.navigate", {"url": url})
-                    print("CDP: navigated to display URL", flush=True)
-                elif tokens:
-                    ws_rpc(ws, "Page.reload", {"ignoreCache": False})
-                    print("CDP: reloaded page to apply restored tokens", flush=True)
+                current = str(page.get("url") or "")
+                # Keep one CDP session through addScript + navigate. Closing the
+                # socket drops addScriptToEvaluateOnNewDocument (session-scoped).
+                with CdpSession.connect(page["webSocketDebuggerUrl"], timeout=20) as cdp:
+                    cdp.call("Page.enable")
+                    if tokens:
+                        cdp.call(
+                            "Page.addScriptToEvaluateOnNewDocument",
+                            {"source": inject_script(tokens)},
+                        )
+                        print("CDP: will restore Home Assistant tokens on navigation", flush=True)
+                    if url and tokens and _already_on_url(current, url):
+                        cdp.call("Page.reload", {"ignoreCache": True})
+                        print("CDP: reloaded page to apply restored tokens", flush=True)
+                        cdp.wait_event("Page.loadEventFired", timeout=60)
+                    elif url:
+                        cdp.call("Page.navigate", {"url": url})
+                        print("CDP: navigated to display URL", flush=True)
+                        cdp.wait_event("Page.loadEventFired", timeout=60)
+                    elif tokens:
+                        cdp.call("Page.reload", {"ignoreCache": False})
+                        print("CDP: reloaded page to apply restored tokens", flush=True)
+                        cdp.wait_event("Page.loadEventFired", timeout=60)
                 injected = True
             else:
                 cmd_dump(port, path)
@@ -306,8 +443,9 @@ def cmd_persist(port: int, path: str, url: str) -> int:
 
 
 def main(argv: list[str]) -> int:
+    usage = "usage: cdp_helper.py dump|close|persist|seed ..."
     if len(argv) < 2:
-        print("usage: cdp_helper.py dump|close|persist PORT [FILE] [URL]", file=sys.stderr)
+        print(usage, file=sys.stderr)
         return 2
     cmd = argv[1]
     try:
@@ -318,10 +456,12 @@ def main(argv: list[str]) -> int:
         if cmd == "persist" and len(argv) >= 4:
             url = argv[4] if len(argv) >= 5 else ""
             return cmd_persist(int(argv[2]), argv[3], url)
+        if cmd == "seed" and len(argv) >= 4:
+            return cmd_seed(argv[2], argv[3])
     except Exception as err:
         print(f"CDP helper error: {err}", file=sys.stderr, flush=True)
         return 1
-    print("usage: cdp_helper.py dump|close|persist PORT [FILE] [URL]", file=sys.stderr)
+    print(usage, file=sys.stderr)
     return 2
 
 

@@ -1,5 +1,5 @@
 name: "VNC Web Browser"
-version: "0.13.3"
+version: "0.14.0"
 slug: "vnc_web_browser"
 description: "Display multiple web pages through VNC, with optional Chrome DevTools Protocol access"
 url: "https://github.com/mindfreeze/ha-vnc-web-browser"
@@ -40,7 +40,9 @@ schema:
       view_only: bool?
       browser_args: str?
       cdp_port: int(9221,9224)?
+      ha_access_token: password?
   vnc_password: password?
+  ha_access_token: password?
 options:
   displays:
     - url: "http://homeassistant.local:8123"

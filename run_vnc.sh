@@ -1,6 +1,11 @@
 #!/bin/bash
 
-config="$1"
+if [ ! -f /data/options.json ]; then
+    echo "Missing /data/options.json" >&2
+    exit 1
+fi
+config=$(cat /data/options.json)
+global_token=$(echo "$config" | jq -r '.ha_access_token // empty')
 
 chromium_pids=()
 xvnc_pids=()
@@ -84,17 +89,22 @@ displays=$(echo "$config" | jq -c '.displays[]')
 
 # Loop through each display configuration
 while IFS= read -r display; do
-    url=$(echo $display | jq -r '.url // empty')
-    resolution=$(echo $display | jq -r '.resolution')
-    port=$(echo $display | jq -r '.port')
-    depth=$(echo $display | jq -r '.depth // 16')
-    view_only=$(echo $display | jq -r '.view_only // false')
-    browser_args=$(echo $display | jq -r '.browser_args // ""')
-    cdp_port=$(echo $display | jq -r '.cdp_port // empty')
+    url=$(echo "$display" | jq -r '.url // empty')
+    resolution=$(echo "$display" | jq -r '.resolution')
+    port=$(echo "$display" | jq -r '.port')
+    depth=$(echo "$display" | jq -r '.depth // 16')
+    view_only=$(echo "$display" | jq -r '.view_only // false')
+    browser_args=$(echo "$display" | jq -r '.browser_args // ""')
+    cdp_port=$(echo "$display" | jq -r '.cdp_port // empty')
+    display_token=$(echo "$display" | jq -r '.ha_access_token // empty')
     display_number=$((port - 5900))
     user_data_dir="/data/chromium-data-$display_number"
     token_file="$user_data_dir/hassTokens.json"
     internal_cdp_port=$((9300 + display_number))
+    effective_token="$display_token"
+    if [ -z "$effective_token" ]; then
+        effective_token="$global_token"
+    fi
 
     # Always bind an internal CDP port so we can snapshot HA tokens.
     # Chromium M113+ silently ignores --remote-debugging-address=0.0.0.0 and binds
@@ -152,6 +162,9 @@ while IFS= read -r display; do
         tmp="$prefs.tmp"
         jq '.credentials_enable_service = false
             | .profile.password_manager_enabled = false
+            | .profile.exit_type = "Normal"
+            | .profile.exited_cleanly = true
+            | .session.restore_on_startup = 5
             | .password_manager.enable_save_password_bubble = false
             | .password_manager.saving_enabled = false
             | .password_manager.enable_autosignin = false
@@ -165,6 +178,12 @@ while IFS= read -r display; do
         if is_home_assistant_url "$url"; then
             url=$(append_store_token "$url")
         fi
+    fi
+
+    # Config token is the kiosk identity: rewrite the seed file each start so
+    # URL origin changes stay in sync. Token is piped on stdin (not argv).
+    if [ -n "$effective_token" ] && [ -n "$url" ]; then
+        printf '%s' "$effective_token" | python3 /home/vnc_user/cdp_helper.py seed "$token_file" "$url"
     fi
 
     echo "Starting Chromium for display $display_number (profile $user_data_dir, CDP $internal_cdp_port)"
@@ -194,6 +213,8 @@ while IFS= read -r display; do
         --disable-suggestions-service \
         --disable-save-password-bubble \
         --password-store=basic \
+        --hide-crash-restore-bubble \
+        --disable-session-crashed-bubble \
         --enable-aggressive-domstorage-flushing \
         --disable-backgrounding-occluded-windows \
         --disable-renderer-backgrounding \
