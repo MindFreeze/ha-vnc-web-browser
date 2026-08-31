@@ -96,6 +96,7 @@ while IFS= read -r display; do
     view_only=$(echo "$display" | jq -r '.view_only // false')
     browser_args=$(echo "$display" | jq -r '.browser_args // ""')
     cdp_port=$(echo "$display" | jq -r '.cdp_port // empty')
+    pull_to_refresh=$(echo "$display" | jq -r '.pull_to_refresh // true')
     display_token=$(echo "$display" | jq -r '.ha_access_token // empty')
     display_number=$((port - 5900))
     user_data_dir="/data/chromium-data-$display_number"
@@ -229,7 +230,7 @@ while IFS= read -r display; do
     internal_cdp_ports+=($internal_cdp_port)
     token_files+=("$token_file")
 
-    python3 /home/vnc_user/cdp_helper.py persist "$internal_cdp_port" "$token_file" "$url" &
+    python3 /home/vnc_user/cdp_helper.py persist "$internal_cdp_port" "$token_file" "$url" "$pull_to_refresh" &
 done <<< "$displays"
 
 # Stay up so SIGTERM can flush profiles. Restart wait if a child exits

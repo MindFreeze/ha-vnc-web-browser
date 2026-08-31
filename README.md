@@ -26,12 +26,14 @@ displays:
     port: 5901
     depth: 16
     view_only: false
+    pull_to_refresh: true
     browser_args: "--force-dark-mode"
   - url: "http://example2.com"
     resolution: "1280x720"
     port: 5902
     depth: 16
     view_only: false
+    pull_to_refresh: true
     browser_args: ""
 vnc_password: "your_secure_password"
 ha_access_token: "<long-lived-access-token>"
@@ -44,7 +46,8 @@ ha_access_token: "<long-lived-access-token>"
   - `resolution`: The resolution of the display (e.g., "1920x1080")
   - `port`: VNC port number (must be between 5901 and 5908). This is the port used in the docker container. You can map it to another port in the addon's network configuration
   - `depth`: Color depth in bits (8-32, defaults to 16). Common values are 8, 16, 24, or 32. There seem to be some issues with 8 bit depth so be careful with that value
-  - `view_only`: Optional boolean to enable view-only mode (defaults to false). When enabled, keyboard and pointer events from VNC clients will be ignored
+  - `view_only`: Optional boolean to enable view-only mode (defaults to false). When enabled, keyboard and pointer events from VNC clients will be ignored. Pull-to-refresh cannot work in view-only mode.
+  - `pull_to_refresh`: Optional boolean (defaults to true). Drag down from the top of the page to reload. See "Pull to refresh" below.
   - `browser_args`: Optional string containing additional CLI arguments to pass to Chromium. Common examples:
     - `"--force-dark-mode"` - Enable dark mode
     - `"--force-device-scale-factor=1.5"` - Set custom zoom level
@@ -68,6 +71,16 @@ Set `url` to the same origin Chromium actually opens. From inside the addon netw
 ### Remember me (no token)
 
 If you do not set a token, connect over VNC and log in once with **Remember me**. This should persist between restarts. If your display device doesn't have a keyboard (like some Kindles), you can connect from another device once in order to login.
+
+## Pull to refresh
+
+Chromium runs in kiosk mode (no toolbar), and VNC clients often cannot send F5 or Ctrl+R — especially from macOS, and on Kindles with no keyboard. Pull down from the top of the page to reload.
+
+The gesture only arms when every scrollable area under your finger is already at the top, so scrolling a dashboard as usual does not refresh. Release after the bar shows **Release to refresh**.
+
+This needs `view_only: false` (the default). Set `pull_to_refresh: false` on a display to disable it.
+
+If the swipe pans the VNC framebuffer instead of dragging the page, the VNC app is eating the gesture. Match `resolution` to the device screen and turn off client-side pan/gestures so the drag reaches Chromium.
 
 ## Chrome DevTools Protocol (CDP)
 
@@ -108,7 +121,7 @@ Do **not** put `--remote-debugging-port` or `--remote-debugging-address` into `b
    - Port: As configured per display (5901-5908)
    - Password: As configured in vnc_password
 
-For Home Assistant dashboards, prefer a long-lived access token so devices without a keyboard never need a VNC login. Otherwise log in once over VNC with **Remember me**; see "Home Assistant login" above.
+For Home Assistant dashboards, prefer a long-lived access token so devices without a keyboard never need a VNC login. Otherwise log in once over VNC with **Remember me**; see "Home Assistant login" above. Kindles can pull down from the top of the dashboard to refresh; see "Pull to refresh" above.
 
 ## Notes
 

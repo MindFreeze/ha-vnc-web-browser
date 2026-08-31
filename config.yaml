@@ -1,5 +1,5 @@
 name: "VNC Web Browser"
-version: "0.14.0"
+version: "0.15.0"
 slug: "vnc_web_browser"
 description: "Display multiple web pages through VNC, with optional Chrome DevTools Protocol access"
 url: "https://github.com/mindfreeze/ha-vnc-web-browser"
@@ -40,6 +40,7 @@ schema:
       view_only: bool?
       browser_args: str?
       cdp_port: int(9221,9224)?
+      pull_to_refresh: bool?
       ha_access_token: password?
   vnc_password: password?
   ha_access_token: password?
@@ -50,5 +51,6 @@ options:
       port: 5901
       depth: 16
       view_only: false
+      pull_to_refresh: true
       browser_args: ""
   vnc_password: ""

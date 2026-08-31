@@ -32,6 +32,182 @@ DUMP_EXPR = """(() => {
   return null;
 })()"""
 
+# Pointer + mouse (VNC clients almost never send Touch Events). Idempotent for
+# the persist loop. addScriptToEvaluateOnNewDocument + Runtime.evaluate.
+PTR_INSTALL_EXPR = r"""(() => {
+  try {
+    if (window.__vncPullToRefresh) return true;
+    window.__vncPullToRefresh = true;
+  } catch (e) { return false; }
+
+  var THRESHOLD = 80;
+  var MAX_PULL = 120;
+  var HOST_ID = '__vnc-ptr-host';
+  var armed = false;
+  var pulling = false;
+  var startX = 0;
+  var startY = 0;
+  var dy = 0;
+  var pointerId = null;
+  var host = null;
+  var bar = null;
+  var label = null;
+
+  function ensureUi() {
+    if (host && host.isConnected) return;
+    host = document.getElementById(HOST_ID);
+    if (host && host.shadowRoot) {
+      bar = host.shadowRoot.getElementById('bar');
+      label = host.shadowRoot.getElementById('label');
+      if (bar && label) return;
+    }
+    host = document.createElement('div');
+    host.id = HOST_ID;
+    host.style.cssText = 'all:initial;position:fixed;top:0;left:0;right:0;z-index:2147483647;pointer-events:none;';
+    var shadow = host.attachShadow({mode:'open'});
+    bar = document.createElement('div');
+    bar.id = 'bar';
+    bar.style.cssText = 'display:none;height:0;overflow:hidden;background:#000;color:#fff;font:16px/1.2 sans-serif;text-align:center;';
+    label = document.createElement('div');
+    label.id = 'label';
+    label.style.cssText = 'padding:12px 8px;';
+    label.textContent = 'Pull to refresh';
+    bar.appendChild(label);
+    shadow.appendChild(bar);
+    var root = document.documentElement || document.body;
+    if (root) root.appendChild(host);
+  }
+
+  function setPull(px) {
+    ensureUi();
+    if (!bar) return;
+    var shown = Math.max(0, Math.min(MAX_PULL, px));
+    if (shown <= 0) {
+      bar.style.display = 'none';
+      bar.style.height = '0px';
+      return;
+    }
+    bar.style.display = 'block';
+    bar.style.height = shown + 'px';
+    label.textContent = shown >= THRESHOLD ? 'Release to refresh' : 'Pull to refresh';
+  }
+
+  function reset() {
+    armed = false;
+    pulling = false;
+    dy = 0;
+    pointerId = null;
+    setPull(0);
+  }
+
+  function isScrollable(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el === document.documentElement || el === document.body) {
+      var root = document.scrollingElement || document.documentElement;
+      return !!(root && root.scrollHeight > root.clientHeight + 1);
+    }
+    var style = window.getComputedStyle(el);
+    var oy = style.overflowY;
+    if (oy !== 'auto' && oy !== 'scroll' && oy !== 'overlay') return false;
+    return el.scrollHeight > el.clientHeight + 1;
+  }
+
+  function scrollTopOf(el) {
+    if (!el || el === document.documentElement || el === document.body) {
+      return window.scrollY || document.documentElement.scrollTop ||
+        (document.body && document.body.scrollTop) || 0;
+    }
+    return el.scrollTop;
+  }
+
+  function eventPath(ev) {
+    if (typeof ev.composedPath === 'function') return ev.composedPath();
+    var path = [];
+    var n = ev.target;
+    while (n) {
+      path.push(n);
+      n = n.parentNode || n.host;
+    }
+    return path;
+  }
+
+  function allAtTop(ev) {
+    var path = eventPath(ev);
+    var seen = [];
+    var i;
+    for (i = 0; i < path.length; i++) {
+      if (path[i] && path[i].nodeType === 1) seen.push(path[i]);
+    }
+    seen.push(document.scrollingElement || document.documentElement);
+    seen.push(document.documentElement);
+    if (document.body) seen.push(document.body);
+    for (i = 0; i < seen.length; i++) {
+      if (!isScrollable(seen[i])) continue;
+      if (scrollTopOf(seen[i]) > 1) return false;
+    }
+    return true;
+  }
+
+  function isEditable(el) {
+    if (!el || el.nodeType !== 1) return false;
+    var tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return !!el.isContentEditable;
+  }
+
+  function onDown(ev) {
+    if (ev.button != null && ev.button !== 0) return;
+    if (isEditable(ev.target)) return;
+    if (!allAtTop(ev)) return;
+    armed = true;
+    pulling = false;
+    startX = ev.clientX;
+    startY = ev.clientY;
+    dy = 0;
+    pointerId = ev.pointerId;
+  }
+
+  function onMove(ev) {
+    if (!armed) return;
+    if (pointerId != null && ev.pointerId != null && ev.pointerId !== pointerId) return;
+    var x = ev.clientX - startX;
+    var y = ev.clientY - startY;
+    if (!pulling) {
+      if (Math.abs(x) > Math.abs(y) && Math.abs(x) > 10) { reset(); return; }
+      if (y > 8 && allAtTop(ev)) pulling = true;
+      else if (y < -8) { reset(); return; }
+      else return;
+    }
+    if (y <= 0) { dy = 0; setPull(0); return; }
+    dy = y;
+    if (ev.cancelable) ev.preventDefault();
+    setPull(y);
+  }
+
+  function onUp(ev) {
+    if (!armed) return;
+    var y = (ev && ev.clientY != null) ? ev.clientY - startY : dy;
+    var shouldReload = pulling && Math.max(dy, y) >= THRESHOLD;
+    reset();
+    if (shouldReload) {
+      try { location.reload(); } catch (e) {}
+    }
+  }
+
+  var opts = {capture: true, passive: false};
+  if (window.PointerEvent) {
+    document.addEventListener('pointerdown', onDown, opts);
+    document.addEventListener('pointermove', onMove, opts);
+    document.addEventListener('pointerup', onUp, opts);
+    document.addEventListener('pointercancel', reset, opts);
+  } else {
+    document.addEventListener('mousedown', onDown, opts);
+    document.addEventListener('mousemove', onMove, opts);
+    document.addEventListener('mouseup', onUp, opts);
+  }
+  return true;
+})()"""
+
 
 def _send_frame(sock: socket.socket, payload: bytes, opcode: int = 1) -> None:
     mask = os.urandom(4)
@@ -402,8 +578,17 @@ def cmd_close(port: int) -> int:
     return 0
 
 
-def cmd_persist(port: int, path: str, url: str) -> int:
+def _truthy_arg(value: str) -> bool:
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def ensure_pull_to_refresh(port: int) -> None:
+    evaluate(port, PTR_INSTALL_EXPR)
+
+
+def cmd_persist(port: int, path: str, url: str, pull_to_refresh: bool = True) -> int:
     injected = False
+    ptr_logged = False
     while True:
         try:
             if not injected:
@@ -421,6 +606,11 @@ def cmd_persist(port: int, path: str, url: str) -> int:
                             {"source": inject_script(tokens)},
                         )
                         print("CDP: will restore Home Assistant tokens on navigation", flush=True)
+                    if pull_to_refresh:
+                        cdp.call(
+                            "Page.addScriptToEvaluateOnNewDocument",
+                            {"source": PTR_INSTALL_EXPR},
+                        )
                     if url and tokens and _already_on_url(current, url):
                         cdp.call("Page.reload", {"ignoreCache": True})
                         print("CDP: reloaded page to apply restored tokens", flush=True)
@@ -436,6 +626,11 @@ def cmd_persist(port: int, path: str, url: str) -> int:
                 injected = True
             else:
                 cmd_dump(port, path)
+            if pull_to_refresh:
+                ensure_pull_to_refresh(port)
+                if not ptr_logged:
+                    print("CDP: pull-to-refresh enabled", flush=True)
+                    ptr_logged = True
         except Exception as err:
             print(f"CDP persist: {err}", flush=True)
         time.sleep(5 if injected else 1)
@@ -455,7 +650,10 @@ def main(argv: list[str]) -> int:
             return cmd_close(int(argv[2]))
         if cmd == "persist" and len(argv) >= 4:
             url = argv[4] if len(argv) >= 5 else ""
-            return cmd_persist(int(argv[2]), argv[3], url)
+            pull = True
+            if len(argv) >= 6:
+                pull = _truthy_arg(argv[5])
+            return cmd_persist(int(argv[2]), argv[3], url, pull)
         if cmd == "seed" and len(argv) >= 4:
             return cmd_seed(argv[2], argv[3])
     except Exception as err:

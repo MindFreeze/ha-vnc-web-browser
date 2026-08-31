@@ -48,7 +48,7 @@ LABEL \
     io.hass.name="VNC Web Browser" \
     io.hass.description="Display multiple web pages through VNC" \
     io.hass.type="addon" \
-    io.hass.version="0.14.0" \
+    io.hass.version="0.15.0" \
     io.hass.arch="aarch64|amd64|armhf|armv7"
 
 # Expose VNC ports (one per display) and optional CDP ports (Chrome DevTools Protocol)

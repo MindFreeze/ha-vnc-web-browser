@@ -2,6 +2,10 @@ configuration:
   displays:
     name: Displays
     description: List of displays to render. Optional per-display ha_access_token overrides the global token for that display.
+    fields:
+      pull_to_refresh:
+        name: Pull to refresh
+        description: Drag down from the top of the page to reload. Uses pointer/mouse events so it works over VNC on devices without a keyboard. Requires view_only to be off. Set false to disable.
   vnc_password:
     name: VNC Password
     description: Password for the VNC connection
