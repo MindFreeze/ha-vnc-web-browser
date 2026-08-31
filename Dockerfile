@@ -1,4 +1,5 @@
-FROM debian:bullseye-slim
+# Debian 13 ships Chromium 151.x (bullseye froze at 120 and is EOL for chromium).
+FROM debian:trixie-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -48,7 +49,7 @@ LABEL \
     io.hass.name="VNC Web Browser" \
     io.hass.description="Display multiple web pages through VNC" \
     io.hass.type="addon" \
-    io.hass.version="0.15.0" \
+    io.hass.version="0.16.0" \
     io.hass.arch="aarch64|amd64|armhf|armv7"
 
 # Expose VNC ports (one per display) and optional CDP ports (Chrome DevTools Protocol)

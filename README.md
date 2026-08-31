@@ -108,7 +108,7 @@ Do not publish cdp_port to a host port on an untrusted network — CDP has no au
 
 ### Why CDP needs special handling
 
-Chromium M113+ silently ignores `--remote-debugging-address=0.0.0.0` and binds 127.0.0.1 regardless (upstream marked WontFix: [crbug.com/40261787](https://issues.chromium.org/issues/40261787)). The addon works around this by binding Chromium to a loopback-only internal port and forwarding via `socat` so the CDP endpoint is reachable from outside the container. The `--remote-allow-origins=*` flag is also injected automatically — without it, modern Chromium rejects WebSocket upgrades from non-localhost callers with a 403.
+Chromium M113+ silently ignores `--remote-debugging-address=0.0.0.0` and binds 127.0.0.1 regardless (upstream marked WontFix: [crbug.com/40261787](https://issues.chromium.org/issues/40261787)). The addon works around this by binding Chromium to a loopback-only internal port and forwarding via `socat` so the CDP endpoint is reachable from outside the container. The `--remote-allow-origins=*` flag is also injected automatically — without it, modern Chromium rejects WebSocket upgrades from non-localhost callers with a 403. Chromium M136+ ignores `--remote-debugging-port` on the default profile; this addon always uses a non-default `--user-data-dir` (`/data/chromium-data-<display>`) so CDP stays enabled.
 
 Do **not** put `--remote-debugging-port` or `--remote-debugging-address` into `browser_args` when using `cdp_port`; those flags are stripped automatically to prevent collisions.
 

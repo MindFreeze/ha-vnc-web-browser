@@ -111,6 +111,8 @@ while IFS= read -r display; do
     # Chromium M113+ silently ignores --remote-debugging-address=0.0.0.0 and binds
     # 127.0.0.1 (upstream WontFix: crbug.com/40261787). Optional socat still
     # publishes that loopback port when the user sets cdp_port.
+    # Chromium M136+ ignores --remote-debugging-port on the default profile;
+    # --user-data-dir below is a non-default path so CDP stays enabled.
     browser_args=$(echo "$browser_args" | sed -E 's/--remote-debugging-port=[^ ]*//g; s/--remote-debugging-address=[^ ]*//g; s/--remote-allow-origins=[^ ]*//g')
     if [ -n "$cdp_port" ]; then
         echo "Starting CDP forwarder for display $display_number: 0.0.0.0:$cdp_port -> 127.0.0.1:$internal_cdp_port"
@@ -204,6 +206,7 @@ while IFS= read -r display; do
         --new-window \
         --no-sandbox \
         --disable-gpu \
+        --ozone-platform=x11 \
         --kiosk \
         --window-size=${width},${height} \
         --window-position=0,0 \
