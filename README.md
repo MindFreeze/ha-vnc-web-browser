@@ -50,7 +50,7 @@ vnc_password: "your_secure_password"
     - `"--disable-features=Translate"` - Disable specific features
     - You can combine multiple arguments: `"--force-dark-mode --force-device-scale-factor=1.25"`
   - `cdp_port`: Optional integer (9221-9224) enabling Chrome DevTools Protocol on this display. See "Chrome DevTools Protocol" below.
-- `vnc_password`: Password for VNC connections (required)
+- `vnc_password`: Password for VNC connections
 
 ## Chrome DevTools Protocol (CDP)
 
