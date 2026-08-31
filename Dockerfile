@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y \
     dbus-x11 \
     x11-xserver-utils \
     socat \
+    procps \
+    curl \
+    python3 \
+    tini \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,10 +32,11 @@ RUN mkdir -p /home/vnc_user/.vnc
 USER root
 COPY startup.sh /home/vnc_user/startup.sh
 COPY run_vnc.sh /home/vnc_user/run_vnc.sh
+COPY cdp_helper.py /home/vnc_user/cdp_helper.py
 COPY chromium_preferences.json /home/vnc_user/chromium_preferences.json
 COPY xstartup /home/vnc_user/.vnc/xstartup
-RUN chown vnc_user:vnc_user /home/vnc_user/startup.sh /home/vnc_user/run_vnc.sh /home/vnc_user/.vnc/xstartup && \
-    chmod +x /home/vnc_user/startup.sh /home/vnc_user/run_vnc.sh /home/vnc_user/.vnc/xstartup
+RUN chown vnc_user:vnc_user /home/vnc_user/startup.sh /home/vnc_user/run_vnc.sh /home/vnc_user/cdp_helper.py /home/vnc_user/chromium_preferences.json /home/vnc_user/.vnc/xstartup && \
+    chmod +x /home/vnc_user/startup.sh /home/vnc_user/run_vnc.sh /home/vnc_user/cdp_helper.py /home/vnc_user/.vnc/xstartup
 
 WORKDIR /home/vnc_user
 
@@ -43,10 +48,10 @@ LABEL \
     io.hass.name="VNC Web Browser" \
     io.hass.description="Display multiple web pages through VNC" \
     io.hass.type="addon" \
-    io.hass.version="0.13.0" \
+    io.hass.version="0.13.3" \
     io.hass.arch="aarch64|amd64|armhf|armv7"
 
 # Expose VNC ports (one per display) and optional CDP ports (Chrome DevTools Protocol)
 EXPOSE 5901/tcp 5902/tcp 5903/tcp 5904/tcp 9221/tcp 9222/tcp 9223/tcp 9224/tcp
 
-CMD ["/home/vnc_user/startup.sh"]
+CMD ["/usr/bin/tini", "--", "/home/vnc_user/startup.sh"]

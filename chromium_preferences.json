@@ -3,9 +3,14 @@
       "check_default_browser": false,
       "custom_chrome_frame": false
     },
-    "credentials_enable_service": true,
+    "credentials_enable_service": false,
+    "profile": {
+      "password_manager_enabled": false
+    },
     "password_manager": {
-      "enable_save_password_bubble": true
+      "enable_save_password_bubble": false,
+      "saving_enabled": false,
+      "enable_autosignin": false
     },
     "history": {
       "saving_disabled": true
@@ -14,7 +19,9 @@
       "reporting_enabled": false
     },
     "autofill": {
-      "enabled": true
+      "enabled": false,
+      "profile_enabled": false,
+      "credit_card_enabled": false
     },
     "extensions": {
       "theme": {

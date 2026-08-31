@@ -91,7 +91,7 @@ Do **not** put `--remote-debugging-port` or `--remote-debugging-address` into `b
    - Port: As configured per display (5901-5908)
    - Password: As configured in vnc_password
 
-Note: Devices without a keyboard like old kindles can't log in but you can use a VNC client on another device to connect to the same session and log in. The session data is saved so you shouldn't need to do this more than once.
+Note: Devices without a keyboard like old kindles can't log in but you can use a VNC client on another device to connect to the same session and log in. After you log in once with **Remember me**, the addon snapshots the Home Assistant auth token (not your username or password) onto persistent storage and restores it before the dashboard loads — including after addon or host restarts. Chromium password saving is disabled.
 
 ## Notes
 
