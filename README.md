@@ -123,6 +123,32 @@ Do **not** put `--remote-debugging-port` or `--remote-debugging-address` into `b
 
 For Home Assistant dashboards, prefer a long-lived access token so devices without a keyboard never need a VNC login. Otherwise log in once over VNC with **Remember me**; see "Home Assistant login" above. Kindles can pull down from the top of the dashboard to refresh; see "Pull to refresh" above.
 
+## Suggested VNC clients
+
+Any standard VNC client should work. Some that run well on old or low power devices:
+
+### Android
+
+- [AVNC](https://github.com/gujjwal00/avnc) — open source, lightweight, no ads. Android 5.0+. Available on [F-Droid](https://f-droid.org/packages/com.gaurav.avnc/) and Google Play.
+- [MultiVNC](https://github.com/bk138/multivnc) — open source, Android 5.0+. Available on [F-Droid](https://f-droid.org/packages/com.coboltforge.dontmind.multivnc/) and Google Play.
+- [bVNC](https://github.com/iiordanov/remote-desktop-clients) — open source, feature rich. Free APKs on GitHub Releases, Google Play and IzzyOnDroid.
+- [android-vnc-viewer (androidVNC)](https://code.google.com/archive/p/android-vnc-viewer/) — the original open source client. Old releases run on Android 4.0 and even earlier, useful for very old tablets.
+
+### iOS / iPadOS
+
+- [RealVNC Viewer](https://apps.apple.com/app/id352019548) — free and reliable.
+- [Mocha VNC Lite](https://apps.apple.com/app/id284984448) — free version has a 5 minute session limit; the paid Mocha VNC removes it.
+
+Current App Store versions need a recent iOS. On an old iPad, first "get" the app with the same Apple ID on a newer device (or from the App Store purchase history), then install it on the old device: the App Store will offer to **download the last compatible version**.
+
+### ESPHome
+
+A native ESPHome VNC client component is in progress: [esphome/esphome#20623](https://github.com/esphome/esphome/pull/20623). It shows the VNC screen on an ESPHome display (e-paper or LCD, e.g. M5Paper), which makes cheap ESP32 panels usable as dashboards. Until it is merged, you can use it as an [external component](https://esphome.io/components/external_components.html) from the PR.
+
+### reMarkable
+
+[VNSee](https://github.com/matteodelabre/vnsee) works on the reMarkable 1 and 2 (the tablet in the photo above). Install it with [Toltec](https://toltec-dev.org/) (`opkg install vnsee`) and launch `vnsee-gui`. The reMarkable 2 also needs [remarkable2-framebuffer](https://github.com/ddvk/remarkable2-framebuffer).
+
 ## Notes
 
 - Each display runs in its own Chromium instance
